@@ -1,7 +1,27 @@
 {
   "name": "playwright-api-swagger",
   "version": "0.1.0",
-  "private": true,
+  "description": "Schema-driven Playwright API testing framework with Swagger/OpenAPI MCP integration",
+  "author": "Praveen Subbarao <praveensubbarao2026@gmail.com> (https://github.com/praveensubbarao)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/praveensubbarao/playwright_api_swagger.git"
+  },
+  "homepage": "https://github.com/praveensubbarao/playwright_api_swagger#readme",
+  "bugs": {
+    "url": "https://github.com/praveensubbarao/playwright_api_swagger/issues"
+  },
+  "keywords": [
+    "playwright",
+    "api-testing",
+    "swagger",
+    "openapi",
+    "mcp",
+    "faker",
+    "typescript"
+  ],
+  "private": false,
   "type": "module",
   "scripts": {
     "mcp:start": "ts-node ./scripts/start-mcp.ts --api petstore",

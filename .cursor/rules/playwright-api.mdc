@@ -1,0 +1,131 @@
+---
+description: Playwright API testing patterns, configuration, and reporting for this repo
+globs:
+  - "tests/**/*.ts"
+  - "playwright.config.ts"
+alwaysApply: false
+---
+
+# Playwright API Testing Patterns
+
+## Config at a Glance
+
+`playwright.config.ts` sets:
+
+- `baseURL` → `https://petstore.swagger.io/v2` (override with `API_BASE_URL` env var)
+- `timeout` → 30s per test
+- `retries` → 2 in CI, 0 locally
+- `workers` → 1 in CI, auto locally
+- Reporters: `list` (console) + `html` (opens after `npm run report`)
+
+## The `request` Fixture
+
+All API tests use Playwright's built-in `request` fixture — no extra setup needed:
+
+```typescript
+import { test, expect } from '@playwright/test';
+
+test('GET /store/inventory', async ({ request }) => {
+  const response = await request.get('store/inventory');
+  expect(response.status()).toBe(200);
+  const body = await response.json();
+});
+```
+
+`baseURL` is automatically prepended. **Critical:** `baseURL` ends with `/` (e.g. `https://petstore.swagger.io/v2/`), so always use relative paths **without** a leading slash: `'pet'`, `'user/login'`, `` `pet/${id}` ``. A leading `/` in the path causes Playwright to drop the base path (URL constructor treats it as absolute).
+
+```
+// Wrong — resolves to https://petstore.swagger.io/pet (drops /v2)
+request.get('/pet')
+
+// Correct — resolves to https://petstore.swagger.io/v2/pet
+request.get('pet')
+```
+
+## HTTP Methods
+
+```typescript
+// GET with query params
+const res = await request.get('/pet/findByStatus', {
+  params: { status: 'available' },
+});
+
+// POST with JSON body
+const res = await request.post('/pet', { data: pet });
+
+// PUT with JSON body
+const res = await request.put('/pet', { data: updatedPet });
+
+// DELETE
+const res = await request.delete(`/pet/${id}`);
+```
+
+## Reading Responses
+
+```typescript
+const status = response.status();          // number: 200, 404, etc.
+const ok = response.ok();                  // true for 200-299
+const body = await response.json();        // parsed JSON
+const text = await response.text();        // raw string
+const headers = response.headers();        // Record<string, string>
+```
+
+Always await `.json()` or `.text()` — they're async.
+
+## Running Tests
+
+```bash
+npm test                          # run everything, list reporter
+npm run test:api                  # tests/api/**
+npm run test:user                 # user.spec.ts only
+npx playwright test --headed      # not useful for API tests, skip
+npx playwright test --debug       # step through with inspector
+API_BASE_URL=http://localhost:8080 npm test  # hit local MCP server
+```
+
+## HTML Report
+
+```bash
+npm run report    # opens playwright-report/index.html in browser
+```
+
+The report shows pass/fail per test, request/response details for failed tests, and retry history in CI.
+
+## Adding a New Test File
+
+1. Create `tests/api/<domain>.spec.ts`
+2. Import test data builders from `../fixtures/factories`
+3. Import types from `../types/petstore`
+4. Follow the naming convention: `test('<METHOD> /<path> - <description>', ...)`
+
+```typescript
+import { test, expect } from '@playwright/test';
+import { buildPet } from '../fixtures/factories';
+import type { Pet } from '../types/petstore';
+
+test.describe('Pet API', () => {
+  test('POST /pet - adds a new pet', async ({ request }) => {
+    const pet = buildPet();
+    const response = await request.post('/pet', { data: pet });
+    expect(response.status()).toBe(200);
+    const body: Pet = await response.json();
+    expect(body.name).toBe(pet.name);
+  });
+});
+```
+
+## Debugging Failures
+
+- Check `test-results/.last-run.json` for the last failed test IDs
+- Re-run only failed tests: `npx playwright test --last-failed`
+- Inspect request/response: `npx playwright test --debug`
+- Failures on the public Petstore may be transient — re-run once before investigating
+
+## CI Integration
+
+Set these environment variables in CI:
+
+```
+CI=true                   # enables retries=2, workers=1
+API_BASE_URL=<env-url>    # point at staging/prod API
+```

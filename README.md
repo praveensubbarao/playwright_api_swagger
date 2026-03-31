@@ -1,5 +1,12 @@
 # Playwright API Swagger Framework
 
+[![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Playwright](https://img.shields.io/badge/tested%20with-Playwright-45ba4b.svg)](https://playwright.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6.svg)](https://www.typescriptlang.org)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+
+**Author:** [Praveen Subbarao](https://github.com/praveensubbarao)
+
 Playwright API test suite for the [Petstore API](https://petstore.swagger.io/v2) with MCP (Model Context Protocol) integration for schema-driven workflows.
 
 > **Claude Code users:** This repo ships a local MCP server. Add it to Claude Code and you can browse, call, and generate tests for every API operation directly from your terminal — no browser needed. See [Claude Code MCP setup](#claude-code-mcp-setup) below.
@@ -49,6 +56,8 @@ scripts/
 ├── playwright-api.mdc         # Playwright patterns: baseURL, request fixture, reporters
 └── swagger-review.mdc         # Spec review checklist and coverage mapping
 CURSOR.md                      # Project-level Cursor rule index and quick-reference
+CONTRIBUTING.md                # Contribution guidelines, PR checklist, bug reporting
+LICENSE                        # MIT License
 ```
 
 ## Setup

@@ -1,0 +1,71 @@
+---
+description: Keep the Structure section in README.md in sync whenever a file is added, moved, renamed, or deleted
+globs:
+  - "tests/**/*"
+  - "scripts/**/*"
+  - "mcp/**/*"
+  - ".cursor/rules/**/*"
+alwaysApply: true
+---
+
+# Keep README.md Structure in Sync
+
+## Rule
+
+**Any time you create, rename, move, or delete a file or directory in this project, update the `## Structure` block in README.md immediately — in the same response, before finishing the task.**
+
+## What to update
+
+The structure block in README.md is a fenced code block under `## Structure`. It uses a tree format where every entry has a short `# comment` explaining its purpose.
+
+```
+tests/
+├── api/
+│   ├── user.spec.ts    # User CRUD + auth endpoints
+│   ├── pet.spec.ts     # Pet CRUD + findByStatus endpoints
+│   └── store.spec.ts   # Store inventory + order lifecycle
+├── fixtures/
+│   └── factories.ts    # Faker-based payload builders
+└── types/
+    └── petstore.ts     # TypeScript interfaces for API payloads
+mcp/
+└── swagger.json        # Swagger 2.0 reference spec
+scripts/
+├── start-mcp.ts        # Downloads OpenAPI spec + starts MCP server
+└── sync-tests.ts       # Diffs spec against manifest, writes stubs for new ops
+```
+
+## Rules for each entry
+
+- **New file** → add a line with the correct tree prefix (`├──` or `└──`) and a `# one-line description`
+- **New directory** → add the folder line (no `#` comment needed, the name is self-describing) plus its children
+- **Renamed file** → update the filename in-place, keep the comment
+- **Deleted file** → remove the line; re-draw sibling prefixes if needed (`├──` → `└──`)
+- **Moved file** → remove from old location, add at new location
+
+## Comment style
+
+Keep comments short and functional — describe *what the file does*, not what it is:
+
+```
+# ✓ User CRUD + auth endpoints
+# ✓ Faker-based payload builders
+# ✓ Diffs spec against manifest, writes stubs for new ops
+
+# ✗ A TypeScript file  (too generic)
+# ✗ Tests for the user API  (repeats the obvious)
+```
+
+## What NOT to include in the structure block
+
+- `node_modules/`
+- `dist/`
+- `test-results/`
+- `playwright-report/`
+- `.spec-manifest.json`
+- `*.log` files
+- Any file listed in `.gitignore`
+
+## When this triggers
+
+This rule applies whenever you touch anything under `tests/`, `scripts/`, `mcp/`, or `.cursor/rules/`. It also applies if you create a new top-level directory. The README structure block is the single source of truth for project layout — keep it exact.

@@ -1,0 +1,91 @@
+---
+description: Guide for reviewing OpenAPI/Swagger specs and deriving test coverage from them
+globs:
+  - "mcp/**/*.json"
+  - "**/*.openapi.json"
+  - "**/*.swagger.json"
+alwaysApply: false
+---
+
+# Reviewing Swagger / OpenAPI Documentation
+
+## What to Verify in a Spec
+
+### 1. Every Operation Has a Documented Response
+
+Check that each `operationId` documents at minimum:
+- `200` (success)
+- `400` (invalid input) where applicable
+- `404` (not found) for resource-by-ID operations
+- `405` (method not allowed) where applicable
+
+If a response code is missing from the spec, flag it — either the API returns it undocumented or the spec is wrong.
+
+### 2. Request Schemas Are Complete
+
+For `POST` and `PUT` operations:
+- All required fields are listed under `required`
+- Field types are explicit (`integer`, `string`, `boolean`, not just `object`)
+- String fields with constraints have `minLength`, `maxLength`, `pattern`, or `enum` where appropriate
+- Numeric fields have `minimum`/`maximum` where they make sense (e.g., IDs, quantities)
+
+### 3. Response Schemas Match Reality
+
+Run a request against the live API and compare the actual JSON keys to the documented schema. Common issues:
+- Extra undocumented fields in responses
+- Nullable fields not marked with `nullable: true` (OAS 2) or `nullable` / `oneOf null` (OAS 3)
+- `integer` fields returning as `string` (common in legacy APIs)
+
+### 4. Path Parameters Are Typed
+
+Every `{petId}`, `{username}`, `{orderId}` must declare `in: path`, correct type, and `required: true`.
+
+### 5. Authentication Is Documented
+
+Each operation should declare its security requirements. For Petstore:
+- `api_key` header for read operations
+- `petstore_auth` OAuth2 for write operations
+
+If the live API doesn't enforce auth, note it — the spec may be aspirational.
+
+### 6. Enum Values Are Exhaustive
+
+Fields like `status` (`available`, `pending`, `sold`) should list all accepted values in `enum`. Test with values outside the enum to verify the API rejects them.
+
+## Mapping Spec to Tests
+
+For every operation in the spec, derive at least:
+
+| Spec element | Test to write |
+|---|---|
+| `200` success response | Happy path test verifying response shape |
+| `404` response | GET/PUT/DELETE with non-existent ID |
+| Required fields | Omit each required field and expect `4xx` |
+| Enum field | Pass invalid enum value, expect `4xx` |
+| Auth required | Call without credentials, expect `401`/`403` |
+
+## Spotting Spec vs Reality Gaps
+
+Run the test suite and look for:
+
+- Tests that expect `404` but get `200` with an error body → spec says 404, API returns 200 with `{ code: 404 }`
+- Tests that expect `201` but get `200` → align test to actual API behavior, open spec issue
+- Fields present in response not in schema → update `tests/types/petstore.ts` and flag in spec
+
+## Adding Types from the Spec
+
+When you see a new schema in the spec, add a matching interface to `tests/types/petstore.ts`:
+
+```typescript
+// OpenAPI schema "Order":
+export interface Order {
+  id?: number;                                  // integer, not required
+  petId: number;                               // integer, required
+  quantity: number;                            // integer, required
+  shipDate?: string;                           // date-time, not required
+  status?: 'placed' | 'approved' | 'delivered'; // enum
+  complete?: boolean;
+}
+```
+
+Keep the TypeScript interface in sync with the spec — they serve as living documentation.

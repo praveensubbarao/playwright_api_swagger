@@ -1,0 +1,115 @@
+---
+description: Best practices for writing Playwright API tests against OpenAPI/Swagger endpoints
+globs:
+  - "tests/**/*.spec.ts"
+  - "tests/**/*.test.ts"
+alwaysApply: false
+---
+
+# API Testing Best Practices
+
+## Test Data — Always Use Factories
+
+Never hardcode test data inline. Use the factory functions in `tests/fixtures/factories.ts`:
+
+```typescript
+import { buildUser, buildPet, buildOrder } from '../fixtures/factories';
+
+const user = buildUser();                          // full random payload
+const admin = buildUser({ userStatus: 2 });        // with overrides
+const pet = buildPet({ status: 'sold' });
+const order = buildOrder(pet.id!, { quantity: 3 });
+```
+
+Add a new `build*` function to `factories.ts` whenever you need payloads for a new resource type. Always use `faker.number.int()` (not deprecated `faker.datatype.number()`).
+
+## Types — Always Import from `tests/types/petstore.ts`
+
+All request/response shapes are defined there. Annotate variables explicitly:
+
+```typescript
+import type { User, Pet, Order } from '../types/petstore';
+
+const body: User = await response.json();
+expect(body.username).toBe(user.username);
+```
+
+## Assertions — Be Explicit
+
+Check the status code first, then verify the response shape:
+
+```typescript
+expect(response.status()).toBe(200);          // exact status, not toBeTruthy()
+const body: Pet = await response.json();
+expect(body.id).toBeDefined();
+expect(body.name).toBe(pet.name);
+expect(body.status).toBe('available');
+```
+
+Avoid `expect([200, 201]).toContain(response.status())` — pick the exact code the spec documents.
+
+## Test Coverage per Endpoint
+
+For each resource, cover:
+
+1. **Create** — happy path, verify response shape
+2. **Read** — retrieve by ID, verify fields match what was created
+3. **Update** — change a field, verify it's reflected in the response
+4. **Delete** — delete, then confirm 404 on subsequent GET
+5. **Not Found** — GET/PUT/DELETE with a non-existent ID returns 404
+6. **List/Filter** — GET collection endpoints, assert `Array.isArray(body)` and check filtered results
+
+## Test Isolation
+
+The Petstore is a shared public environment. To avoid cross-test pollution:
+
+- Generate IDs with `faker.number.int({ min: 10_000, max: 99_999 })` — large enough to avoid low-ID conflicts.
+- Never rely on data created by another test. Each test must set up its own state.
+- `test.describe` blocks group related tests but each `test()` must be independently runnable.
+
+## Naming Convention
+
+```
+test('<METHOD> /<path> - <what it does>', async ({ request }) => {
+```
+
+Examples:
+- `POST /user - creates a single user`
+- `GET /user/{username} - returns 404 for non-existent user`
+- `POST /pet - full lifecycle: create, read, update, delete`
+
+## Error Responses
+
+Always test the documented error cases:
+
+```typescript
+test('GET /pet/{petId} - returns 404 for non-existent pet', async ({ request }) => {
+  const response = await request.get('/pet/999999999');
+  expect(response.status()).toBe(404);
+});
+```
+
+## Lifecycle Tests
+
+For write-heavy resources, add an end-to-end lifecycle test that creates, reads, updates, and deletes in a single test:
+
+```typescript
+test('POST /pet - full lifecycle: create, read, update, delete', async ({ request }) => {
+  const pet = buildPet();
+  const createRes = await request.post('/pet', { data: pet });
+  expect(createRes.status()).toBe(200);
+  const created: Pet = await createRes.json();
+
+  const getRes = await request.get(`/pet/${created.id}`);
+  expect(getRes.status()).toBe(200);
+
+  const updateRes = await request.put('/pet', { data: { ...created, status: 'sold' } });
+  expect(updateRes.status()).toBe(200);
+
+  const deleteRes = await request.delete(`/pet/${created.id}`);
+  expect(deleteRes.status()).toBe(200);
+
+  const afterDelete = await request.get(`/pet/${created.id}`);
+  expect(afterDelete.status()).toBe(404);
+});
+```
