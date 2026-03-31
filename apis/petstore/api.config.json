@@ -1,0 +1,7 @@
+{
+  "name": "petstore",
+  "swaggerUri": "https://petstore3.swagger.io/api/v3/openapi.json",
+  "baseUrl": "https://petstore.swagger.io/v2/",
+  "specFile": "mcp/swagger.json",
+  "mcpPort": 8080
+}

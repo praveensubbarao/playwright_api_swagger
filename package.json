@@ -1,0 +1,29 @@
+{
+  "name": "playwright-api-swagger",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "mcp:start": "ts-node ./scripts/start-mcp.ts --api petstore",
+
+    "test": "npx playwright test",
+    "test:petstore": "npx playwright test --project=petstore",
+    "test:user": "npx playwright test apis/petstore/tests/api/user.spec.ts",
+    "test:pet": "npx playwright test apis/petstore/tests/api/pet.spec.ts",
+    "test:store": "npx playwright test apis/petstore/tests/api/store.spec.ts",
+    "report": "npx playwright show-report",
+
+    "sync": "ts-node ./scripts/sync-tests.ts --api petstore",
+    "sync:check": "ts-node ./scripts/sync-tests.ts --api petstore --check",
+    "sync:download": "ts-node ./scripts/sync-tests.ts --api petstore --download"
+  },
+  "dependencies": {
+    "@faker-js/faker": "^8.0.2",
+    "@tyk-technologies/api-to-mcp": "^0.1.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.44.0",
+    "typescript": "^5.6.2",
+    "ts-node": "^10.9.1"
+  }
+}
