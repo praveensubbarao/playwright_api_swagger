@@ -39,9 +39,10 @@ apis/
     │   └── swagger.json       # Swagger 2.0 reference spec
     ├── tests/
     │   ├── api/
-    │   │   ├── user.spec.ts   # User CRUD + auth endpoints
-    │   │   ├── pet.spec.ts    # Pet CRUD + findByStatus endpoints
-    │   │   └── store.spec.ts  # Store inventory + order lifecycle
+    │   │   ├── user.spec.ts            # User CRUD + auth endpoints
+    │   │   ├── pet.spec.ts             # Pet CRUD + findByStatus endpoints
+    │   │   ├── pet.contract.spec.ts    # Pet API contract tests (schema shape, types, enums)
+    │   │   └── store.spec.ts           # Store inventory + order lifecycle
     │   ├── fixtures/
     │   │   └── factories.ts   # Faker-based payload builders
     │   └── types/
@@ -178,6 +179,56 @@ npm run sync -- --api my-other-api
 ts-node ./scripts/start-mcp.ts --api my-other-api
 claude mcp add my-other-api --url http://localhost:8081
 ```
+
+## Contract Testing
+
+Contract tests verify that every API response **conforms to the OpenAPI schema** — correct field types, required fields present, enum values within spec. They live alongside functional tests but have a distinct purpose: catching schema drift before it breaks consumers.
+
+### How it works in this project
+
+The contract is not stored as separate JSON files. It flows from two sources:
+
+| File | Format | Role |
+|---|---|---|
+| `apis/petstore/mcp/openapi.json` | OpenAPI 3.0 | Primary source of truth; used by MCP server |
+| `apis/petstore/mcp/swagger.json` | Swagger 2.0 | Legacy format reference; same API, minor structural differences |
+
+The contract tests in `pet.contract.spec.ts` use inline validator functions hand-derived from `openapi.json`. Each function mirrors the schema directly:
+
+```
+assertPetContract      ← Pet schema: required [name, photoUrls], optional [id, category, tags, status]
+assertCategoryContract ← Category schema: optional [id: integer, name: string]
+assertTagContract      ← Tag schema: optional [id: integer, name: string]
+```
+
+The OpenAPI `required` array and `enum` values are the exact rules enforced in code — if the spec changes, the validator functions must be updated to match.
+
+### What each contract test covers
+
+| Test | Contract rule enforced |
+|---|---|
+| `POST /pet` body | Required fields present, all field types correct, status is valid enum |
+| `GET /pet/{petId}` body | Full Pet schema including nested Category and Tags |
+| `PUT /pet` body | Schema holds after an update (not just HTTP 200) |
+| `GET /pet/findByStatus` body | Returns `Pet[]`; each item passes schema; status matches query |
+| `GET /pet/{petId}` after deletion | 404 status code contract |
+| Round-trip required fields | `name` and `photoUrls` survive a POST and are echoed back |
+| Optional fields preserved | `category`, `tags`, `status` are not stripped by the server |
+
+### Running contract tests
+
+```bash
+npx playwright test apis/petstore/tests/api/pet.contract.spec.ts
+```
+
+### Lessons learned
+
+**Own the lifecycle in contract tests.** The public Petstore demo server is shared and its data changes unpredictably. Two patterns that emerged during development:
+
+- **`findByStatus`** — pre-create a known pet, then find it by ID in the results. Avoids failures caused by the server having no valid pets or returning malformed data from other users' activity.
+- **404 assertion** — use a create→delete→GET sequence rather than a hardcoded unknown ID. The demo server returns HTTP 200 with an error payload body for some large IDs (a server-side bug), which a hardcoded ID test cannot reliably avoid.
+
+**What this approach doesn't cover.** The validators are manually synced with `openapi.json`. If the spec changes and the validator functions are not updated, the tests will not catch the drift. The next evolution is to load `openapi.json` at test runtime and drive validation via a JSON Schema validator (e.g. `ajv`), so spec and assertions share a single source of truth automatically.
 
 ## Writing Tests
 
